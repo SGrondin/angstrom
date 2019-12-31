@@ -55,8 +55,9 @@ let rec finalize state result =
   | Partial _, `Stopped () -> assert false
   | state    , _           -> state_to_result state
 
-let response = function
+let rec response = function
   | Partial p  -> `Consumed(p.committed, `Need_unknown)
+  | Jump jump  -> (response[@tailcall]) (jump ())
   | Done(c, _) -> `Stop_consumed((), c)
   | Fail _     -> `Stop ()
 
@@ -66,14 +67,14 @@ let parse ?(pushback=default_pushback) p reader =
   let state = ref (parse p) in
   let handle_chunk buf ~pos ~len =
     begin match !state with
-    | Partial p ->
-      state := p.continue buf ~off:pos ~len Incomplete;
-    | _         -> ()
+      | Partial p ->
+        state := p.continue buf ~off:pos ~len Incomplete;
+      | _         -> ()
     end;
     pushback () >>| fun () -> response !state
   in
   Reader.read_one_chunk_at_a_time reader ~handle_chunk >>| fun result ->
-    finalize !state result
+  finalize !state result
 
 let async_many e k =
   Angstrom.(skip_many (e <* commit >>| k) <?> "async_many")

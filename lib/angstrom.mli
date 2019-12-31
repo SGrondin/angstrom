@@ -301,9 +301,9 @@ val fix : ('a t -> 'a t) -> 'a t
     such as sequences, trees, etc. Consider for example the implementation of
     the {!many} combinator defined in this library:
 
-{[let many p =
-  fix (fun m ->
-    (cons <$> p <*> m) <|> return [])]}
+    {[let many p =
+        fix (fun m ->
+            (cons <$> p <*> m) <|> return [])]}
 
     [many p] is a parser that will run [p] zero or more times, accumulating the
     result of every run into a list, returning the result. It's defined by
@@ -329,11 +329,11 @@ val fix : ('a t -> 'a t) -> 'a t
     you will gain access to a parser that you can use to parse JSON values, the
     very parser you are defining!
 
-{[let json =
-  fix (fun json ->
-    let arr = char '[' *> sep_by (char ',') json <* char ']' in
-    let obj = char '{' *> ... json ... <* char '}' in
-    choice [str; num; arr json, ...])]} *)
+    {[let json =
+        fix (fun json ->
+            let arr = char '[' *> sep_by (char ',') json <* char ']' in
+            let obj = char '{' *> ... json ... <* char '}' in
+            choice [str; num; arr json, ...])]} *)
 
 
 (** {2 Alternatives} *)
@@ -402,7 +402,7 @@ val lift4 : ('a -> 'b -> 'c -> 'd -> 'e) -> 'a t -> 'b t -> 'c t -> 'd t -> 'e t
 (** The [liftn] family of functions promote functions to the parser monad.
     For any of these functions, the following equivalence holds:
 
-{[liftn f p1 ... pn = f <$> p1 <*> ... <*> pn]}
+    {[liftn f p1 ... pn = f <$> p1 <*> ... <*> pn]}
 
     These functions are more efficient than using the applicative interface
     directly, mostly in terms of memory allocation but also in terms of speed.
@@ -411,7 +411,7 @@ val lift4 : ('a -> 'b -> 'c -> 'd -> 'e) -> 'a t -> 'b t -> 'c t -> 'd t -> 'e t
     implementation for [liftn]. In other words, if [f] has an arity of [5] but
     only [lift4] is provided, do the following:
 
-{[lift4 f m1 m2 m3 m4 <*> m5]}
+    {[lift4 f m1 m2 m3 m4 <*> m5]}
 
     Even with the partial application, it will be more efficient than the
     applicative implementation. *)
@@ -521,6 +521,7 @@ module Buffered : sig
 
   type 'a state =
     | Partial of ([ input | `Eof ] -> 'a state) (** The parser requires more input. *)
+    | Jump    of (unit -> 'a state)
     | Done    of unconsumed * 'a (** The parser succeeded. *)
     | Fail    of unconsumed * string list * string (** The parser failed. *)
 
@@ -579,18 +580,19 @@ module Unbuffered : sig
 
   type 'a state =
     | Partial of 'a partial (** The parser requires more input. *)
+    | Jump    of (unit -> 'a state)
     | Done    of int * 'a (** The parser succeeded, consuming specified bytes. *)
     | Fail    of int * string list * string (** The parser failed, consuming specified bytes. *)
   and 'a partial =
     { committed : int
-      (** The number of bytes committed during the last input feeding.
-          Callers must drop this number of bytes from the beginning of the
-          input on subsequent calls. See {!commit} for additional details. *)
+    (** The number of bytes committed during the last input feeding.
+        Callers must drop this number of bytes from the beginning of the
+        input on subsequent calls. See {!commit} for additional details. *)
     ; continue : bigstring -> off:int -> len:int -> more -> 'a state
-      (** A continuation of a parse that requires additional input. The input
-          should include all uncommitted input (as reported by previous partial
-          states) in addition to any new input that has become available, as
-          well as an indication of whether there is {!more} input to come.  *)
+    (** A continuation of a parse that requires additional input. The input
+        should include all uncommitted input (as reported by previous partial
+        states) in addition to any new input that has become available, as
+        well as an indication of whether there is {!more} input to come.  *)
     }
 
   val parse : 'a t -> 'a state
