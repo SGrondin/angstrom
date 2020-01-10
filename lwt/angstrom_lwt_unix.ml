@@ -49,6 +49,7 @@ let rec buffered_state_loop pushback state in_chan bytes =
     end
     >>= fun state' -> pushback ()
     >>= fun ()     -> buffered_state_loop pushback state' in_chan bytes
+  | Jump jump -> buffered_state_loop pushback (jump ()) in_chan bytes
   | state -> return state
 
 let handle_parse_result state =
@@ -66,8 +67,8 @@ let with_buffered_parse_state ?(pushback=default_pushback) state in_chan =
   let size  = Lwt_io.buffer_size in_chan in
   let bytes = Bytes.create size in
   begin match state with
-  | Partial _ -> buffered_state_loop pushback state in_chan bytes
-  | _         -> return state
+    | Partial _ | Jump _ -> buffered_state_loop pushback state in_chan bytes
+    | _         -> return state
   end
   >|= handle_parse_result
 
